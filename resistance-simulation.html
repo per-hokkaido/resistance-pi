@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>電気抵抗シミュレーション</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+      background: #0c1220;
+      min-height: 100vh;
+      min-height: 100dvh;
+      color: #e0e0e0;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
+      padding: 8px;
+      gap: 8px;
+    }
+
+    /* ======== モードタブ ======== */
+    .mode-tabs {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 14px;
+      padding: 4px;
+    }
+
+    .mode-tab {
+      flex: 1;
+      padding: 9px 6px;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      color: #64748b;
+      background: transparent;
+      text-align: center;
+      line-height: 1.25;
+    }
+
+    .mode-tab.active {
+      color: #f0f4f8;
+      background: linear-gradient(145deg, #1e2d4a, #162540);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    }
+
+    .mode-tab:not(.active):hover { color: #94a3b8; }
+
+    .tab-num {
+      display: block;
+      font-size: 0.62rem;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      margin-bottom: 1px;
+      opacity: 0.6;
+    }
+
+    .mode-tab.active .tab-num { opacity: 1; color: #60a5fa; }
+
+    /* ======== メインレイアウト ======== */
+    .main-area {
+      display: grid;
+      grid-template-columns: 1fr 260px;
+      gap: 8px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .sim-column {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+    }
+
+    /* 回路パネル */
+    .circuit-panel {
+      flex: 1;
+      background: linear-gradient(160deg, #131c30 0%, #0e1626 100%);
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.04);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .circuit-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+
+    .circuit-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #93c5fd;
+    }
+
+    .circuit-subtitle {
+      font-size: 0.7rem;
+      color: #475569;
+    }
+
+    .canvas-wrap {
+      flex: 1;
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #060b16;
+      min-height: 0;
+    }
+
+    #circuitCanvas { width: 100%; height: 100%; display: block; }
+
+    /* バーチャート */
+    .bar-chart-panel {
+      height: 120px;
+      min-height: 120px;
+      flex-shrink: 0;
+      background: linear-gradient(160deg, #131c30 0%, #0e1626 100%);
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.04);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .bar-chart-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #818cf8;
+      margin-bottom: 4px;
+      flex-shrink: 0;
+    }
+
+    .bar-canvas-wrap { flex: 1; min-height: 0; }
+    #barCanvas { width: 100%; height: 100%; display: block; }
+
+    /* ======== コントロールパネル ======== */
+    .control-panel {
+      background: linear-gradient(160deg, #131c30 0%, #0e1626 100%);
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.04);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+    }
+
+    .section-label {
+      font-size: 0.68rem;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    /* 選択肢ボタン */
+    .option-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .option-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .option-grid.cols-5 { grid-template-columns: repeat(5, 1fr); }
+
+    .option-btn {
+      padding: 10px 6px;
+      border: 2px solid rgba(71, 85, 105, 0.25);
+      border-radius: 10px;
+      background: rgba(0,0,0,0.15);
+      color: #94a3b8;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    .option-btn:hover {
+      border-color: rgba(96, 165, 250, 0.3);
+      background: rgba(96, 165, 250, 0.06);
+    }
+
+    .option-btn.selected {
+      border-color: #3b82f6;
+      background: rgba(59, 130, 246, 0.12);
+      color: #93c5fd;
+      box-shadow: 0 0 16px rgba(59, 130, 246, 0.15);
+    }
+
+    .opt-letter {
+      display: block;
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 1px;
+    }
+
+    .opt-desc {
+      font-size: 0.58rem;
+      font-weight: 400;
+      opacity: 0.7;
+      line-height: 1.2;
+    }
+
+    .option-btn.selected .opt-desc { opacity: 1; }
+
+    /* メーター */
+    .meter-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .meter {
+      flex: 1;
+      background: rgba(0,0,0,0.3);
+      border-radius: 10px;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+
+    .meter-label {
+      font-size: 0.62rem;
+      color: #475569;
+      margin-bottom: 3px;
+      font-weight: 500;
+    }
+
+    .meter-val {
+      font-size: 1.35rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    .meter-unit {
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: #64748b;
+      margin-left: 2px;
+    }
+
+    .m-resistance .meter-val { color: #4ade80; }
+    .m-current .meter-val { color: #fbbf24; }
+
+    /* 数式ボックス */
+    .formula {
+      background: rgba(0,0,0,0.25);
+      border-radius: 8px;
+      padding: 8px;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+
+    .formula em {
+      font-style: normal;
+      color: #fbbf24;
+      font-weight: 700;
+    }
+
+    /* 問いかけ */
+    .hint-box {
+      background: rgba(234, 179, 8, 0.06);
+      border-left: 3px solid rgba(234, 179, 8, 0.4);
+      border-radius: 0 8px 8px 0;
+      padding: 10px;
+      font-size: 0.72rem;
+      line-height: 1.6;
+      color: #d4a017;
+    }
+
+    .hint-box b { display: block; margin-bottom: 2px; font-size: 0.68rem; color: #eab308; }
+
+    /* スイッチUI */
+    .switch-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sw-btn {
+      width: 52px;
+      height: 28px;
+      border-radius: 14px;
+      background: #1e293b;
+      border: 2px solid #334155;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.3s;
+      flex-shrink: 0;
+    }
+
+    .sw-btn.on { background: #166534; border-color: #22c55e; }
+
+    .sw-btn::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #94a3b8;
+      top: 2px;
+      left: 2px;
+      transition: all 0.3s;
+    }
+
+    .sw-btn.on::after { transform: translateX(24px); background: #4ade80; }
+
+    .sw-label { font-size: 0.82rem; color: #cbd5e1; }
+
+    /* スライダー */
+    .slider-grp { display: flex; flex-direction: column; gap: 4px; }
+
+    .slider-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+    }
+
+    .slider-head .lbl { color: #94a3b8; }
+    .slider-head .val { color: #93c5fd; font-weight: 600; }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 5px;
+      border-radius: 3px;
+      background: #1e293b;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #60a5fa, #3b82f6);
+      box-shadow: 0 2px 6px rgba(59,130,246,0.4);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #60a5fa, #3b82f6);
+      box-shadow: 0 2px 6px rgba(59,130,246,0.4);
+      border: none;
+    }
+
+    /* ======== レスポンシブ ======== */
+    @media (max-width: 860px) {
+      .main-area {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto auto;
+      }
+      .meter-row { flex-direction: row; }
+      .option-grid.cols-5 { grid-template-columns: repeat(5, 1fr); }
+    }
+
+    @media (max-width: 480px) {
+      .app { padding: 5px; gap: 5px; }
+      .mode-tab { padding: 7px 3px; font-size: 0.68rem; }
+      .tab-num { font-size: 0.55rem; }
+      .circuit-panel { padding: 8px; }
+      .bar-chart-panel { height: 90px; min-height: 90px; padding: 6px 8px; }
+      .control-panel { padding: 10px; gap: 8px; }
+      .meter-val { font-size: 1.1rem; }
+      .option-grid.cols-5 { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="1">
+        <span class="tab-num">Q1</span>長さと太さ
+      </button>
+      <button class="mode-tab" data-mode="2">
+        <span class="tab-num">Q2</span>形状と抵抗
+      </button>
+      <button class="mode-tab" data-mode="3">
+        <span class="tab-num">Q3</span>直列・並列
+      </button>
+      <button class="mode-tab" data-mode="4">
+        <span class="tab-num">Q4</span>スイッチ回路
+      </button>
+    </div>
+
+    <div class="main-area">
+      <div class="sim-column">
+        <div class="circuit-panel">
+          <div class="circuit-header">
+            <div class="circuit-title" id="circuitTitle">⚡ 回路図</div>
+            <div class="circuit-subtitle" id="circuitSub"></div>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="circuitCanvas"></canvas>
+          </div>
+        </div>
+        <div class="bar-chart-panel">
+          <div class="bar-chart-title" id="barTitle">📊 抵抗値の比較</div>
+          <div class="bar-canvas-wrap">
+            <canvas id="barCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="control-panel" id="ctrlPanel"></div>
+    </div>
+  </div>
+
+  <script>
+    // =============================================
+    // 状態変数
+    // =============================================
+    let mode = 1, sel = 'A', anim = 0, prevT = 0;
+    let swOn = false, rA = 10, rB = 20;
+    let cCanvas, cCtx, bCanvas, bCtx, dpr = 1;
+
+    const RHO = 1.10e-6;   // ニクロム線の抵抗率 Ω·m
+    const V = 3.0;          // 電池電圧 V
+
+    // =============================================
+    // 物理データ
+    // =============================================
+    const M1 = {
+      A: { l: 0.10, d: 0.50e-3, desc: '10cm\nφ0.50mm' },
+      B: { l: 0.20, d: 0.50e-3, desc: '20cm\nφ0.50mm' },
+      C: { l: 0.10, d: 1.00e-3, desc: '10cm\nφ1.0mm' },
+      D: { l: 0.20, d: 1.00e-3, desc: '20cm\nφ1.0mm' },
+    };
+
+    // Mode2用基本抵抗（10cm, φ0.50mm 1本）
+    const R0 = wireR(0.10, 0.50e-3);
+
+    function wireR(l, d) {
+      return RHO * l / (Math.PI * (d/2) ** 2);
+    }
+
+    function resistance() {
+      if (mode === 1) {
+        const o = M1[sel];
+        return wireR(o.l, o.d);
+      }
+      if (mode === 2) return sel === 'A' ? R0 : R0 / 2;
+      if (mode === 3) {
+        if (sel === 'A') return 3 * R0;
+        if (sel === 'B') return 1.5 * R0;
+        return R0 / 3;
+      }
+      if (mode === 4) {
+        if (!swOn) return rA;
+        return (rA * rB) / (rA + rB);
+      }
+      return 1;
+    }
+
+    function current() { return V / resistance(); }
+
+    // すべてのオプションの抵抗マップ
+    function allR() {
+      const map = {};
+      if (mode === 1) {
+        for (const k of 'ABCD') { const o = M1[k]; map[k] = wireR(o.l, o.d); }
+      } else if (mode === 2) {
+        for (const k of 'ABCDE') map[k] = k === 'A' ? R0 : R0 / 2;
+      } else if (mode === 3) {
+        map.A = 3*R0; map.B = 1.5*R0; map.C = R0/3;
+      } else {
+        map['開'] = rA;
+        map['閉'] = (rA * rB) / (rA + rB);
+      }
+      return map;
+    }
+
+    // =============================================
+    // 初期化
+    // =============================================
+    function init() {
+      cCanvas = document.getElementById('circuitCanvas');
+      bCanvas = document.getElementById('barCanvas');
+      cCtx = cCanvas.getContext('2d');
+      bCtx = bCanvas.getContext('2d');
+      resize();
+      window.addEventListener('resize', resize);
+
+      document.querySelectorAll('.mode-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          mode = +tab.dataset.mode;
+          document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          sel = mode === 4 ? null : 'A';
+          swOn = false;
+          buildUI();
+        });
+      });
+
+      buildUI();
+      prevT = performance.now();
+      requestAnimationFrame(loop);
+    }
+
+    function resize() {
+      dpr = devicePixelRatio || 1;
+      for (const c of [cCanvas, bCanvas]) {
+        const p = c.parentElement;
+        c.width = p.clientWidth * dpr;
+        c.height = p.clientHeight * dpr;
+        c.style.width = p.clientWidth + 'px';
+        c.style.height = p.clientHeight + 'px';
+      }
+      draw();
+    }
+
+    // =============================================
+    // UIビルド
+    // =============================================
+    function buildUI() {
+      const p = document.getElementById('ctrlPanel');
+      let h = '';
+
+      const titles = {
+        1: ['⚡ ニクロム線の回路', 'どのニクロム線で電流が最大？'],
+        2: ['⚡ 形状と抵抗', '形を変えると抵抗はどうなる？'],
+        3: ['⚡ 直列・並列の合成抵抗', '接続方法で抵抗はどう変わる？'],
+        4: ['⚡ スイッチと並列回路', 'スイッチを閉じると電流は？'],
+      };
+      document.getElementById('circuitTitle').textContent = titles[mode][0];
+      document.getElementById('circuitSub').textContent = titles[mode][1];
+      document.getElementById('barTitle').textContent =
+        mode === 4 ? '📊 電流の比較 (A)' : '📊 抵抗値の比較 (Ω)';
+
+      if (mode === 1) {
+        h += sec('ニクロム線を選択');
+        h += '<div class="option-grid">';
+        for (const k of 'ABCD') {
+          const o = M1[k];
+          const s = sel === k ? 'selected' : '';
+          h += `<button class="option-btn ${s}" data-o="${k}">
+            <span class="opt-letter">${k}</span>
+            <span class="opt-desc">${(o.l*100).toFixed(0)}cm / φ${(o.d*1000).toFixed(1)}mm</span>
+          </button>`;
+        }
+        h += '</div>';
+        h += meters();
+        h += `<div class="formula">R = ρ · <em>L</em> / <em>A</em></div>`;
+        h += hint('電流が最大になるのはどれ？<br>太さ2倍で断面積は何倍？');
+
+      } else if (mode === 2) {
+        h += sec('配置を選択');
+        const descs = { A:'1本',B:'2本\n束ね',C:'2本\n並列',D:'2本\n筒型',E:'2本\nリング'};
+        h += '<div class="option-grid cols-5">';
+        for (const k of 'ABCDE') {
+          const s = sel === k ? 'selected' : '';
+          h += `<button class="option-btn ${s}" data-o="${k}">
+            <span class="opt-letter">${k}</span>
+            <span class="opt-desc">${descs[k].replace('\n','<br>')}</span>
+          </button>`;
+        }
+        h += '</div>';
+        h += meters();
+        h += hint('形が違っても抵抗が同じものは？<br>それぞれ直列？並列？');
+
+      } else if (mode === 3) {
+        h += sec('接続方法を選択');
+        const descs = {A:'直列\n(3本)',B:'直列1本\n+並列2本',C:'並列\n(3本)'};
+        h += '<div class="option-grid cols-3">';
+        for (const k of 'ABC') {
+          const s = sel === k ? 'selected' : '';
+          h += `<button class="option-btn ${s}" data-o="${k}">
+            <span class="opt-letter">${k}</span>
+            <span class="opt-desc">${descs[k].replace('\n','<br>')}</span>
+          </button>`;
+        }
+        h += '</div>';
+        h += meters();
+        h += `<div class="formula">直列: R = R₁+R₂+…　並列: 1/R = 1/R₁+1/R₂+…</div>`;
+        h += hint('A〜Cの抵抗の大小は？<br>1本の抵抗をRとして計算してみよう');
+
+      } else if (mode === 4) {
+        h += sec('スイッチ操作');
+        h += `<div class="switch-row">
+          <button class="sw-btn ${swOn?'on':''}" id="swBtn"></button>
+          <span class="sw-label" id="swLbl">${swOn?'閉（ON）':'開（OFF）'}</span>
+        </div>`;
+        h += sec('抵抗値の設定', 8);
+        h += slider('rA', '抵抗A', rA, 'Ω', 5, 50);
+        h += slider('rB', '抵抗B', rB, 'Ω', 5, 50);
+        h += meters();
+        h += hint('スイッチを閉じると電流は増える？減る？<br>抵抗A,Bの値を色々変えて試してみよう');
+      }
+
+      p.innerHTML = h;
+
+      // イベント
+      p.querySelectorAll('.option-btn').forEach(b => {
+        b.addEventListener('click', () => {
+          sel = b.dataset.o;
+          p.querySelectorAll('.option-btn').forEach(x => x.classList.remove('selected'));
+          b.classList.add('selected');
+          draw();
+        });
+      });
+
+      const swBtn = document.getElementById('swBtn');
+      if (swBtn) swBtn.addEventListener('click', () => {
+        swOn = !swOn;
+        swBtn.classList.toggle('on', swOn);
+        document.getElementById('swLbl').textContent = swOn ? '閉（ON）' : '開（OFF）';
+        draw();
+      });
+
+      bindSlider('rA', v => { rA = v; });
+      bindSlider('rB', v => { rB = v; });
+
+      draw();
+    }
+
+    function sec(t, mt) { return `<div class="section-label" ${mt?'style="margin-top:'+mt+'px"':''}>${t}</div>`; }
+    function hint(t) { return `<div class="hint-box"><b>💡 考えてみよう</b>${t}</div>`; }
+    function meters() {
+      return `<div class="meter-row">
+        <div class="meter m-resistance"><div class="meter-label">抵抗</div><div class="meter-val" id="mR">—<span class="meter-unit">Ω</span></div></div>
+        <div class="meter m-current"><div class="meter-label">電流</div><div class="meter-val" id="mI">—<span class="meter-unit">A</span></div></div>
+      </div>`;
+    }
+    function slider(id, label, val, unit, min, max) {
+      return `<div class="slider-grp">
+        <div class="slider-head"><span class="lbl">${label}</span><span class="val" id="${id}V">${val} ${unit}</span></div>
+        <input type="range" id="${id}S" min="${min}" max="${max}" step="1" value="${val}">
+      </div>`;
+    }
+    function bindSlider(id, cb) {
+      const s = document.getElementById(id+'S');
+      if (!s) return;
+      s.addEventListener('input', () => {
+        const v = +s.value;
+        cb(v);
+        document.getElementById(id+'V').textContent = v + ' Ω';
+        draw();
+      });
+    }
+
+    function updateMeters() {
+      const R = resistance(), I = current();
+      const mR = document.getElementById('mR');
+      const mI = document.getElementById('mI');
+      if (mR) mR.innerHTML = R.toFixed(2) + '<span class="meter-unit">Ω</span>';
+      if (mI) mI.innerHTML = I.toFixed(3) + '<span class="meter-unit">A</span>';
+    }
+
+    // =============================================
+    // アニメーションループ
+    // =============================================
+    function loop(t) {
+      anim += (t - prevT) / 1000;
+      prevT = t;
+      drawCircuit();
+      requestAnimationFrame(loop);
+    }
+
+    function draw() {
+      updateMeters();
+      drawCircuit();
+      drawBar();
+    }
+
+    // =============================================
+    // 回路描画 共通ユーティリティ
+    // =============================================
+    function setCtx(ctx, w, h) {
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#060b16';
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    // 導線
+    function wire(ctx, pts, color, lw) {
+      ctx.strokeStyle = color || '#384460';
+      ctx.lineWidth = lw || 2.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      pts.forEach((p,i) => i===0 ? ctx.moveTo(p[0],p[1]) : ctx.lineTo(p[0],p[1]));
+      ctx.stroke();
+    }
+
+    // 電池
+    function battery(ctx, cx, cy, horiz) {
+      ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2.5; ctx.lineCap = 'butt';
+      if (horiz) {
+        ctx.beginPath(); ctx.moveTo(cx-5, cy-14); ctx.lineTo(cx-5, cy+14); ctx.stroke();
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(cx+5, cy-8); ctx.lineTo(cx+5, cy+8); ctx.stroke();
+        lbl(ctx, '+', cx-14, cy, '#94a3b8', 9);
+        lbl(ctx, '−', cx+15, cy, '#94a3b8', 9);
+      } else {
+        ctx.beginPath(); ctx.moveTo(cx-14, cy-5); ctx.lineTo(cx+14, cy-5); ctx.stroke();
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(cx-8, cy+5); ctx.lineTo(cx+8, cy+5); ctx.stroke();
+        lbl(ctx, '+', cx, cy-14, '#94a3b8', 9);
+        lbl(ctx, '−', cx, cy+16, '#94a3b8', 9);
+      }
+    }
+
+    // 電流計
+    function ammeter(ctx, cx, cy) {
+      ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, cy, 13, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = 'rgba(251,191,36,0.08)';
+      ctx.fill();
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('A', cx, cy+1);
+    }
+
+    // ニクロム線の箱
+    function nichrome(ctx, x, y, w, h, color) {
+      const g = ctx.createLinearGradient(x, y, x, y+h);
+      g.addColorStop(0, lighten(color, 25));
+      g.addColorStop(0.5, color);
+      g.addColorStop(1, lighten(color, 25));
+      ctx.fillStyle = g;
+      rr(ctx, x, y, w, h, Math.min(h/2, 4));
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // 抵抗器（四角）
+    function resistorBox(ctx, x, y, w, h, color, text) {
+      ctx.fillStyle = color + '22';
+      rr(ctx, x, y, w, h, 4);
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      if (text) {
+        ctx.fillStyle = color;
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, x+w/2, y+h/2);
+      }
+    }
+
+    // スイッチ描画
+    function drawSw(ctx, cx, cy, closed) {
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath(); ctx.arc(cx-16, cy, 3.5, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx+16, cy, 3.5, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = closed ? '#4ade80' : '#ef4444';
+      ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx-16, cy);
+      ctx.lineTo(closed ? cx+16 : cx+6, closed ? cy : cy-16);
+      ctx.stroke();
+    }
+
+    // ラベル
+    function lbl(ctx, text, x, y, color, size, align) {
+      ctx.fillStyle = color || '#94a3b8';
+      ctx.font = (size||11) + 'px sans-serif';
+      ctx.textAlign = align || 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, x, y);
+    }
+
+    // 電荷アニメーション
+    function charges(ctx, pts, I, t) {
+      if (Math.abs(I) < 0.0005) return;
+      const total = pLen(pts);
+      if (total < 1) return;
+      const spd = Math.min(I * 60, 180);
+      const gap = 28;
+      const n = Math.max(3, Math.floor(total / gap));
+      for (let i = 0; i < n; i++) {
+        let f = ((i/n) + t * spd / total) % 1;
+        if (f < 0) f += 1;
+        const pos = pAt(pts, f);
+        ctx.beginPath();
+        ctx.arc(pos[0], pos[1], 3, 0, Math.PI*2);
+        ctx.fillStyle = '#fbbf24';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(pos[0], pos[1], 6, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(251,191,36,0.12)';
+        ctx.fill();
+      }
+    }
+
+    function pLen(pts) {
+      let l = 0;
+      for (let i=1;i<pts.length;i++) l += Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]);
+      return l;
+    }
+
+    function pAt(pts, t) {
+      const total = pLen(pts);
+      let tgt = t * total;
+      for (let i=1;i<pts.length;i++) {
+        const seg = Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]);
+        if (tgt <= seg) {
+          const f = tgt/seg;
+          return [pts[i-1][0]+(pts[i][0]-pts[i-1][0])*f, pts[i-1][1]+(pts[i][1]-pts[i-1][1])*f];
+        }
+        tgt -= seg;
+      }
+      return pts[pts.length-1];
+    }
+
+    function lighten(hex, amt) {
+      let c = hex.replace('#','');
+      if (c.length===3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+      const n = parseInt(c,16);
+      const r = Math.min(255,(n>>16)+amt);
+      const g = Math.min(255,((n>>8)&0xff)+amt);
+      const b = Math.min(255,(n&0xff)+amt);
+      return `rgb(${r},${g},${b})`;
+    }
+
+    function rr(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x+r, y);
+      ctx.lineTo(x+w-r, y);
+      ctx.arcTo(x+w, y, x+w, y+r, r);
+      ctx.lineTo(x+w, y+h-r);
+      ctx.arcTo(x+w, y+h, x+w-r, y+h, r);
+      ctx.lineTo(x+r, y+h);
+      ctx.arcTo(x, y+h, x, y+h-r, r);
+      ctx.lineTo(x, y+r);
+      ctx.arcTo(x, y, x+r, y, r);
+      ctx.closePath();
+    }
+
+    // =============================================
+    // 回路描画本体
+    // =============================================
+    function drawCircuit() {
+      const ctx = cCtx;
+      const w = cCanvas.clientWidth, h = cCanvas.clientHeight;
+      setCtx(ctx, w, h);
+
+      if (mode === 1) drawM1(ctx, w, h);
+      else if (mode === 2) drawM2(ctx, w, h);
+      else if (mode === 3) drawM3(ctx, w, h);
+      else drawM4(ctx, w, h);
+
+      ctx.restore();
+    }
+
+    // ── Mode1: 長さ・太さ ──
+    function drawM1(ctx, w, h) {
+      const o = M1[sel];
+      const I = current();
+      const cx = w/2, cy = h/2;
+
+      // 回路ジオメトリ
+      const L = Math.min(w*0.35, 160), T = Math.min(h*0.3, 80);
+      const l = cx-L, r = cx+L, t = cy-T, b = cy+T;
+
+      // メインループ（時計回り: 電流の向き）
+      const path = [[l,b],[l,t],[r,t],[r,b],[l,b]];
+      wire(ctx, path);
+
+      // 電池（下辺中央）
+      battery(ctx, cx, b, true);
+      lbl(ctx, `${V}V`, cx, b+18, '#64748b', 10);
+
+      // 電流計（左辺）
+      ammeter(ctx, l, cy);
+
+      // ニクロム線（上辺）: 見た目の太さ・長さをパラメータに応じて変化
+      const visW = o.l === 0.10 ? L*0.8 : L*1.5;
+      const visH = o.d === 0.50e-3 ? 10 : 22;
+      const wx = cx - visW/2, wy = t - visH/2;
+
+      nichrome(ctx, wx, wy, visW, visH, '#8b5cf6');
+
+      // 寸法線
+      ctx.strokeStyle = '#475569'; ctx.lineWidth = 1;
+      ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(wx, wy-10); ctx.lineTo(wx+visW, wy-10); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 寸法ラベル
+      lbl(ctx, `${(o.l*100).toFixed(0)} cm`, cx, wy-20, '#94a3b8', 11);
+      lbl(ctx, `φ${(o.d*1000).toFixed(1)} mm`, cx, wy+visH+14, '#94a3b8', 10);
+
+      // 端子
+      dot(ctx, wx, t); dot(ctx, wx+visW, t);
+      lbl(ctx, 'a', wx-10, t, '#60a5fa', 10);
+      lbl(ctx, 'b', wx+visW+10, t, '#60a5fa', 10);
+
+      // 電荷アニメーション
+      charges(ctx, path, I, anim);
+
+      // 情報
+      lbl(ctx, `R = ${resistance().toFixed(2)} Ω`, cx, b-18, '#4ade80', 12);
+      lbl(ctx, `I = ${I.toFixed(3)} A`, cx + L*0.6, cy, '#fbbf24', 12);
+    }
+
+    // ── Mode2: 形状と抵抗 ──
+    function drawM2(ctx, w, h) {
+      const I = current();
+      const cx = w/2, cy = h/2;
+      const L = Math.min(w*0.32, 150), T = Math.min(h*0.3, 80);
+      const l = cx-L, r = cx+L, t = cy-T, b = cy+T;
+
+      const path = [[l,b],[l,t],[r,t],[r,b],[l,b]];
+      wire(ctx, path);
+      battery(ctx, cx, b, true);
+      ammeter(ctx, l, cy);
+
+      // ニクロム線の形状描画（上辺周辺）
+      const nw = L * 1.1;  // 基本幅
+      const nx = cx - nw/2;
+
+      if (sel === 'A') {
+        // 1本
+        nichrome(ctx, nx, t-6, nw, 12, '#8b5cf6');
+        lbl(ctx, '1本', cx, t-20, '#cbd5e1', 11);
+      } else if (sel === 'B') {
+        // 束ねた2本（見た目は太い1本＝並列）
+        nichrome(ctx, nx, t-9, nw, 8, '#8b5cf6');
+        nichrome(ctx, nx, t+1, nw, 8, '#60a5fa');
+        lbl(ctx, '2本 束ね (並列)', cx, t-22, '#cbd5e1', 11);
+      } else if (sel === 'C') {
+        // 横に並べた並列
+        nichrome(ctx, nx, t-16, nw, 8, '#8b5cf6');
+        nichrome(ctx, nx, t+8, nw, 8, '#60a5fa');
+        // 端の接続
+        wire(ctx, [[nx, t-12],[nx, t+12]], '#475569', 2);
+        wire(ctx, [[nx+nw, t-12],[nx+nw, t+12]], '#475569', 2);
+        lbl(ctx, '2本 並列', cx, t-28, '#cbd5e1', 11);
+      } else if (sel === 'D') {
+        // 筒型（横から見た断面）
+        nichrome(ctx, nx, t-18, nw, 8, '#8b5cf6');
+        nichrome(ctx, nx, t+10, nw, 8, '#60a5fa');
+        // 端にアーチ
+        ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(nx, t, 6, 16, 0, -Math.PI/2, Math.PI/2, true); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(nx+nw, t, 6, 16, 0, Math.PI/2, -Math.PI/2, true); ctx.stroke();
+        lbl(ctx, '2本 筒型 (並列)', cx, t-30, '#cbd5e1', 11);
+      } else if (sel === 'E') {
+        // リング型
+        const ringR = 26;
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = '#8b5cf6';
+        ctx.beginPath(); ctx.arc(cx, t, ringR, Math.PI, 0); ctx.stroke();
+        ctx.strokeStyle = '#60a5fa';
+        ctx.beginPath(); ctx.arc(cx, t, ringR, 0, Math.PI); ctx.stroke();
+        dot(ctx, cx-ringR, t); dot(ctx, cx+ringR, t);
+        lbl(ctx, '2本 リング (並列)', cx, t-ringR-14, '#cbd5e1', 11);
+      }
+
+      charges(ctx, path, I, anim);
+      lbl(ctx, `R = ${resistance().toFixed(2)} Ω`, cx, b-18, '#4ade80', 12);
+    }
+
+    // ── Mode3: 直列・並列 ──
+    function drawM3(ctx, w, h) {
+      const I = current();
+      const cx = w/2, cy = h/2;
+      const L = Math.min(w*0.36, 170), T = Math.min(h*0.3, 80);
+      const l = cx-L, r = cx+L, t = cy-T, b = cy+T;
+      const cols = ['#8b5cf6','#3b82f6','#ec4899'];
+
+      if (sel === 'A') {
+        // 3本直列
+        const path = [[l,b],[l,t],[r,t],[r,b],[l,b]];
+        wire(ctx, path);
+        const nw = L * 0.58;
+        const gap = 12;
+        const totalW = nw*3 + gap*2;
+        const sx = cx - totalW/2;
+        for (let i=0;i<3;i++) {
+          nichrome(ctx, sx + i*(nw+gap), t-6, nw, 12, cols[i]);
+          lbl(ctx, `R${i+1}`, sx + i*(nw+gap) + nw/2, t-18, cols[i], 10);
+        }
+        charges(ctx, path, I, anim);
+
+      } else if (sel === 'B') {
+        // 1本直列 + 2本並列
+        const midX = cx - 10;
+        const jX = midX + 40;  // 分岐点
+        const bTop = cy - 28, bBot = cy + 28;
+        const bRight = r - 30;
+
+        // メインパス上
+        const pathMain = [[l,b],[l,t],[midX-30,t],[midX-30,cy],[jX,cy],
+                          [jX,bTop],[bRight,bTop],[bRight,cy],
+                          [r,cy],[r,b],[l,b]];
+        // 下パス
+        const pathLow = [[jX,cy],[jX,bBot],[bRight,bBot],[bRight,cy]];
+
+        wire(ctx, pathMain);
+        wire(ctx, pathLow);
+
+        // 直列の1本
+        nichrome(ctx, midX-70, t-6, 80, 12, cols[0]);
+        lbl(ctx, 'R₁', midX-30, t-18, cols[0], 10);
+
+        // 並列の2本
+        const pw = 60;
+        const px = (jX + bRight)/2 - pw/2;
+        nichrome(ctx, px, bTop-5, pw, 10, cols[1]);
+        nichrome(ctx, px, bBot-5, pw, 10, cols[2]);
+        lbl(ctx, 'R₂', px+pw/2, bTop-16, cols[1], 10);
+        lbl(ctx, 'R₃', px+pw/2, bBot+16, cols[2], 10);
+
+        charges(ctx, pathMain, I*0.5, anim);
+        charges(ctx, pathLow, I*0.5, anim + 0.3);
+
+      } else {
+        // 3本並列
+        const jL = cx - 60, jR = cx + 60;
+        const offsets = [-28, 0, 28];
+
+        wire(ctx, [[l,b],[l,cy],[jL,cy]]);
+        wire(ctx, [[jR,cy],[r,cy],[r,b],[l,b]]);
+        wire(ctx, [[jL,cy-28],[jL,cy+28]]);
+        wire(ctx, [[jR,cy-28],[jR,cy+28]]);
+
+        const pw = 70;
+        offsets.forEach((off,i) => {
+          wire(ctx, [[jL, cy+off],[jR, cy+off]]);
+          nichrome(ctx, cx-pw/2, cy+off-4, pw, 8, cols[i]);
+          lbl(ctx, `R${i+1}`, cx+pw/2+14, cy+off, cols[i], 10);
+        });
+
+        const mainPath = [[l,b],[l,cy],[jL,cy],[jR,cy],[r,cy],[r,b],[l,b]];
+        charges(ctx, mainPath, I, anim);
+      }
+
+      battery(ctx, cx, b, true);
+      ammeter(ctx, l, cy);
+      lbl(ctx, `R合成 = ${resistance().toFixed(2)} Ω`, cx, b-18, '#4ade80', 12);
+    }
+
+    // ── Mode4: スイッチ回路 ──
+    function drawM4(ctx, w, h) {
+      const R = resistance(), I = V/R;
+      const cx = w/2, cy = h/2;
+      const L = Math.min(w*0.35, 160), T = Math.min(h*0.32, 90);
+      const l = cx-L, r = cx+L, t = cy-T, b = cy+T;
+      const mid = cy;
+
+      // 抵抗A（中央、常に接続）
+      const pathA = [[l,b],[l,mid],[r,mid],[r,b],[l,b]];
+      wire(ctx, pathA);
+
+      // 抵抗B（上、スイッチ付き）
+      const wireCol = swOn ? '#384460' : '#1e2a3a';
+      wire(ctx, [[l,mid],[l,t],[r,t],[r,mid]], wireCol, 2.5);
+
+      // 電池（下辺中央）
+      battery(ctx, cx, b, true);
+      lbl(ctx, `${V}V`, cx, b+18, '#64748b', 10);
+
+      // 電流計（左下）
+      ammeter(ctx, l, (mid+b)/2);
+
+      // 抵抗A
+      resistorBox(ctx, cx-40, mid-12, 80, 24, '#4ade80', `A: ${rA}Ω`);
+
+      // 抵抗B
+      const bCol = swOn ? '#60a5fa' : '#334155';
+      resistorBox(ctx, cx+15, t-12, 80, 24, bCol, `B: ${rB}Ω`);
+
+      // スイッチ（上の枝の左側）
+      drawSw(ctx, cx-50, t, swOn);
+      lbl(ctx, 'SW', cx-50, t-20, '#cbd5e1', 10);
+
+      // 電荷アニメーション
+      const iA = V / rA;
+      charges(ctx, pathA, iA, anim);
+      if (swOn) {
+        const iB = V / rB;
+        charges(ctx, [[l,mid],[l,t],[r,t],[r,mid]], iB, anim);
+      }
+
+      // 情報表示
+      lbl(ctx, `I = ${I.toFixed(3)} A`, cx, b-20, '#fbbf24', 13);
+      if (swOn) {
+        lbl(ctx, `R合成 = ${R.toFixed(1)} Ω`, cx, mid+24, '#4ade80', 11);
+      } else {
+        lbl(ctx, `R = ${rA} Ω (Aのみ)`, cx, mid+24, '#94a3b8', 11);
+      }
+    }
+
+    function dot(ctx, x, y) {
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath();
+      ctx.arc(x, y, 3.5, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // =============================================
+    // バーチャート描画
+    // =============================================
+    function drawBar() {
+      const ctx = bCtx;
+      const w = bCanvas.clientWidth, h = bCanvas.clientHeight;
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = '#0a0f1c';
+      ctx.fillRect(0, 0, w, h);
+
+      let labels, values, colors, showCurrent = false;
+
+      if (mode === 4) {
+        showCurrent = true;
+        labels = ['SW開', 'SW閉'];
+        const rOpen = rA;
+        const rClosed = (rA*rB)/(rA+rB);
+        values = [V/rOpen, V/rClosed];
+        colors = ['#ef4444', '#22c55e'];
+      } else {
+        const map = allR();
+        labels = Object.keys(map);
+        values = Object.values(map);
+        const palette = ['#8b5cf6','#3b82f6','#ec4899','#4ade80','#fbbf24'];
+        colors = labels.map((_,i) => palette[i % palette.length]);
+      }
+
+      const maxV = Math.max(...values) * 1.3;
+      const pad = { l: 36, r: 10, t: 6, b: 20 };
+      const gw = w - pad.l - pad.r;
+      const gh = h - pad.t - pad.b;
+      const gap = 6;
+      const bw = Math.min(42, (gw - gap*(labels.length+1)) / labels.length);
+      const total = labels.length * bw + (labels.length-1) * gap;
+      const sx = pad.l + (gw - total) / 2;
+
+      // Y軸目盛り
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'right';
+      for (let i=0;i<=3;i++) {
+        const y = pad.t + gh * (1 - i/3);
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(pad.l, y, gw, 0.5);
+        ctx.fillStyle = '#475569';
+        const v = maxV * i / 3;
+        ctx.fillText(v < 1 ? v.toFixed(2) : v.toFixed(1), pad.l-4, y+3);
+      }
+
+      // バー
+      labels.forEach((lbl, i) => {
+        const x = sx + i * (bw + gap);
+        const bh = (values[i] / maxV) * gh;
+        const y = pad.t + gh - bh;
+
+        const isSel = mode === 4
+          ? (lbl === 'SW開' && !swOn) || (lbl === 'SW閉' && swOn)
+          : lbl === sel;
+
+        ctx.globalAlpha = isSel ? 1 : 0.35;
+        ctx.fillStyle = colors[i];
+        rr(ctx, x, y, bw, bh, [3,3,0,0]);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+
+        // 値
+        ctx.fillStyle = isSel ? '#f0f0f0' : '#475569';
+        ctx.font = 'bold 9px sans-serif';
+        ctx.textAlign = 'center';
+        const vStr = values[i] < 1 ? values[i].toFixed(3) : values[i].toFixed(2);
+        ctx.fillText(vStr, x+bw/2, y-5);
+
+        // Xラベル
+        ctx.fillStyle = isSel ? '#e2e8f0' : '#475569';
+        ctx.font = (isSel ? 'bold ' : '') + '10px sans-serif';
+        ctx.fillText(lbl, x+bw/2, pad.t + gh + 13);
+      });
+
+      ctx.restore();
+    }
+
+    // =============================================
+    // 起動
+    // =============================================
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
